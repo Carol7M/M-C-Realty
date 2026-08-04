@@ -547,7 +547,7 @@
     <div class="wrap">
       <span class="eyebrow">Available now</span>
       <h2 class="sec">Browse our houses</h2>
-      <p class="lede">Filter by area or bedrooms. Every listing here has been checked by us in person.</p>
+      <p class="lede">Filter by rent or sale, area, or bedrooms. Every listing here has been checked by us in person.</p>
       <div class="filter-bar" id="filter-bar"></div>
       <p class="results-count" id="results-count"></p>
       <div class="house-grid" id="all-houses-grid"></div>
@@ -1090,13 +1090,14 @@ const bathIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const igIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;margin-right:8px;"><rect x="2" y="2" width="20" height="20" rx="5"/><polygon points="10.5 8.8 15.5 12 10.5 15.2" fill="currentColor" stroke="none"/></svg>';
 const waIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>';
 
+function isSale(h){ return /sale/i.test(h.priceNote||''); }
 function priceText(h){
   if(!h.price) return 'Price on request';
-  return 'KES '+h.price.toLocaleString()+(h.priceNote?' '+h.priceNote:'');
+  return 'KES '+h.price.toLocaleString()+(isSale(h)?' — For Sale':' per month');
 }
 function priceHTML(h){
   if(!h.price) return `Price on request<small>ask us on WhatsApp</small>`;
-  const note = h.priceNote ? `per month, ${h.priceNote}` : 'per month';
+  const note = isSale(h) ? 'For Sale' : 'per month';
   return `KES ${h.price.toLocaleString()}<small>${note}</small>`;
 }
 
@@ -1150,9 +1151,13 @@ function observeNew(c){
 
 /* FILTERS built from listing data */
 let currentAreaFilter='All';
+let currentDealFilter='All';
 function bedsWord(n){ return n===0 ? 'Studio' : (n===1 ? '1 bedroom' : n+' bedrooms'); }
 function bedsMeta(n){ return n===0 ? 'Studio' : n+' bed'; }
 function buildFilterBar(){
+  const deals=['All','For Rent','For Sale'].map(d=>
+    `<button class="chip" aria-pressed="${d==='All'}" data-deal="${d}" onclick="setDealFilter('${d}',this)">${d}</button>`
+  ).join('');
   const areas=[...new Set(HOUSES.map(h=>h.area))].sort();
   const chips=['All',...areas].map(a=>
     `<button class="chip" aria-pressed="${a==='All'}" data-area="${a}" onclick="setAreaFilter('${a.replace(/'/g,"\\'")}',this)">${a==='All'?'All areas':a}</button>`
@@ -1161,7 +1166,8 @@ function buildFilterBar(){
   // so a house can never end up hidden from the filter.
   const sizes=[...new Set([0,1,2,3,...HOUSES.map(h=>h.beds)])].sort((a,b)=>a-b);
   const opts=sizes.map(n=>`<option value="${n}">${bedsWord(n)}</option>`).join('');
-  document.getElementById('filter-bar').innerHTML = chips +
+  document.getElementById('filter-bar').innerHTML = deals +
+    `<div class="filter-sep"></div>` + chips +
     `<div class="filter-sep"></div>
      <select class="select-mini" id="bed-filter" onchange="renderHouses()" aria-label="Filter by size">
        <option value="any">Any size</option>${opts}
@@ -1169,7 +1175,13 @@ function buildFilterBar(){
 }
 function setAreaFilter(area,btn){
   currentAreaFilter=area;
-  document.querySelectorAll('#filter-bar .chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+  document.querySelectorAll('#filter-bar .chip[data-area]').forEach(c=>c.setAttribute('aria-pressed','false'));
+  btn.setAttribute('aria-pressed','true');
+  renderHouses();
+}
+function setDealFilter(deal,btn){
+  currentDealFilter=deal;
+  document.querySelectorAll('#filter-bar .chip[data-deal]').forEach(c=>c.setAttribute('aria-pressed','false'));
   btn.setAttribute('aria-pressed','true');
   renderHouses();
 }
@@ -1177,6 +1189,7 @@ function renderHouses(){
   const bf=document.getElementById('bed-filter');
   const size=bf?bf.value:'any';
   const f=HOUSES.filter(h=>
+    (currentDealFilter==='All'||(currentDealFilter==='For Sale'?isSale(h):!isSale(h))) &&
     (currentAreaFilter==='All'||h.area===currentAreaFilter) &&
     (size==='any'||h.beds===parseInt(size,10)));
   const g=document.getElementById('all-houses-grid');
