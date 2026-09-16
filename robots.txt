@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Block crawling of asset noise, keep the crawl budget on the listings
+Disallow: /*.json$
+
+Sitemap: https://mchomelistings.co.ke/sitemap.xml
